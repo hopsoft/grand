@@ -1,0 +1,21 @@
+# MySQL database configuration for the Mysql2 gem.
+database:
+  host: 127.0.0.1
+  database: database_name
+  username: root
+  password:
+
+# The primary key name shared common to all/most tables.
+primary_key: id
+
+# The timestamp column shared common to all/most tables.
+timestamp: updated_at
+
+# The batch size to use when searching for updates using the pk strategy.
+batch_size: 10000
+
+# The directory where the archived files will be save.
+path: /path/to/archived/files
+
+# The delimiter to use as a column separator in the CSV files.
+csv_delimiter: ","
