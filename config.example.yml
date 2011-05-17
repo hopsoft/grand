@@ -14,6 +14,9 @@ timestamp: updated_at
 # The batch size to use when searching for updates using the pk strategy.
 batch_size: 10000
 
+# Indicates how many times the pk strategy will loop with empty results.
+max_empty_loops: 10
+
 # The directory where the archived files will be save.
 path: /path/to/archived/files
 

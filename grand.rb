@@ -19,6 +19,7 @@ def config
   @config
 end
 
+# Returns a logger for this script.
 def logger
   return @logger if @logger
   log_path = File.expand_path(File.join(File.dirname(__FILE__), 'log'))
@@ -108,7 +109,7 @@ def create_files(options={})
     end
 
     path = File.expand_path(File.join(config[:path], table))
-    file_name = "#{options[:start_date].strftime('%Y%m%d%H%M')}-#{options[:end_date].strftime('%Y%m%d%H%M')}"
+    file_name = "#{options[:start_date].strftime('%Y%m%d%H%M')}-#{options[:end_date].strftime('%Y%m%d%H%M')}.csv"
     file_path = File.join(path, file_name)
     FileUtils.mkdir_p(path)
     records = get_records(table, info, options)
@@ -134,6 +135,7 @@ def get_records(table, info, options={})
   ids = []
 
   if info[:timestamp][:ok]
+    # TODO: think about batching this query
     query = "select #{config[:primary_key]} from #{table} where updated_at between '#{options[:start_date].to_s(:db)}' and '#{options[:end_date].to_s(:db)}'"
     logger.info "Querying #{table} with timestamp strategy."
     logger.info query
@@ -142,24 +144,36 @@ def get_records(table, info, options={})
     query = "select #{config[:primary_key]} from #{table} order by #{config[:primary_key]} desc limit 1"
     logger.info "Querying #{table} with primary key strategy."
     last_id = @db_client.query(query).first.values.first rescue nil
+    last_queried_id = nil
 
-    while last_id
+    empty_loop_count = 0
+    while last_id && empty_loop_count <= config[:max_empty_loops]
+      break if last_id == last_queried_id
       query = "select #{config[:primary_key]}, #{config[:timestamp]} from #{table} where id < #{last_id} order by id desc limit #{config[:batch_size]}"
       logger.info query
+      current_id = last_id
+      last_queried_id = last_id
       last_id = nil
 
       db_client.query(query).each do |row|
+        current_id = row[config[:primary_key]]
         next if row[config[:timestamp]].nil?
         if row[config[:timestamp]] >= options[:start_date]
-          last_id = row[config[:primary_key]]
+          last_id = current_id
           ids << last_id
+          empty_loop_count = 0
         end
+      end
+
+      if last_id.nil?
+        empty_loop_count += 1
+        last_id = current_id
       end
     end
   end
 
   if ids.length > 0
-    chunk_count = ids.length / 1000
+    chunk_count = ids.length / config[:batch_size]
     if chunk_count == 0
       query = "select #{info[:queryable_columns].join(', ')} from #{table} where id in (#{ids.join(',')})"
       logger.info query
