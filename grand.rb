@@ -31,7 +31,8 @@ end
 
 # Returns a Mysql2::Client instance.
 def db_client
-  @db_client ||= Mysql2::Client.new(config[:database])
+  # @db_client ||= Mysql2::Client.new(config[:database])
+  Mysql2::Client.new(config[:database])
 end
 
 # Returns a Hash containing enough schema meta data to build the archive files.
@@ -56,6 +57,7 @@ def archive(options={})
 
   schema.tables.each do |table, info|
     path = File.expand_path(File.join(config[:path], table))
+    FileUtils.mkdir_p(path)
 
     # save schema information
     schemas_path = File.join(path, "schemas")
@@ -63,7 +65,7 @@ def archive(options={})
     if !File.exists?(schema_file_path)
       FileUtils.mkdir_p(schemas_path)
       File.open(schema_file_path, "w") do |file|
-        file.write(info[:columns].to_yaml)
+        file.write(info.to_yaml)
       end
     end
 
@@ -81,21 +83,36 @@ def archive(options={})
       next
     end
 
-    file_name = "#{options[:start_date].strftime('%Y%m%d%H%M')}-#{options[:end_date].strftime('%Y%m%d%H%M')}-#{info[:version]}.csv"
+    file_name = "#{options[:start_date].strftime('%Y%m%d%H%M%S')}-#{options[:end_date].strftime('%Y%m%d%H%M%S')}-#{info[:version]}.csv"
     file_path = File.join(path, file_name)
-    FileUtils.mkdir_p(path)
-    records = get_records(table, options)
+    ids, records = get_records(table, options)
 
-    FasterCSV.open(file_path, "w", :col_sep => config[:csv_delimiter]) do |csv|
-      csv << info[:columns]
-      records.each do |row|
-        values = []
-        info[:columns].each {|c| values << row[c]}
-        csv << values
-        record_count += 1
+    if records.length > 0
+      # save inserts and updates to a file
+      FasterCSV.open(file_path, "w", :col_sep => config[:csv_delimiter]) do |csv|
+        csv << info[:column_names]
+        records.each do |row|
+          values = []
+          info[:column_names].each {|c| values << row[c]}
+          csv << values
+          record_count += 1
+        end
+      end
+
+      # save missing ids to a file as well
+      missing_ids = get_missing_ids(table, ids.first, ids.last)
+      if missing_ids.length > 0
+        file_name = "#{options[:start_date].strftime('%Y%m%d%H%M%S')}-#{options[:end_date].strftime('%Y%m%d%H%M%S')}-#{info[:version]}.csv"
+        file_path = File.join(path, file_name)
+
+        FasterCSV.open(file_path, "w", :col_sep => config[:csv_delimiter]) do |csv|
+          csv << ["id"]
+          missing_ids.each do |id|
+            csv << [id]
+          end
+        end
       end
     end
-
   end
 
   logger.info "Archived #{record_count} records in #{Time.now - start} seconds."
@@ -103,6 +120,13 @@ def archive(options={})
 end
 
 private
+
+def get_missing_ids(table, start_id, end_id)
+  expected_ids = (start_id..end_id).to_a
+  query = "select #{backtick(config[:primary_key])} from #{backtick(table)} where #{backtick(config[:primary_key])} between #{start_id} and #{end_id}"
+  found_ids = db_client.query(query, :as => :array).map {|r| r.first}
+  expected_ids - found_ids
+end
 
 def get_records(table, options={})
   records = []
@@ -112,7 +136,7 @@ def get_records(table, options={})
   tbl = backtick(table)
   pk = backtick(config[:primary_key])
   timestamp = backtick(config[:timestamp])
-  columns = schema.tables[table][:columns].map {|c| backtick(c)}
+  columns = schema.tables[table][:column_names].map {|c| backtick(c)}
 
 
   if schema.tables[table][:expected_timestamp][:valid]
@@ -139,7 +163,7 @@ def get_records(table, options={})
       db_client.query(query).each do |row|
         current_id = row[config[:primary_key]]
         next if row[config[:timestamp]].nil?
-        if row[config[:timestamp]] >= options[:start_date]
+        if row[config[:timestamp]] >= options[:start_date] && row[config[:timestamp]] <= options[:start_date]
           last_id = current_id
           ids << last_id
           empty_loop_count = 0
@@ -169,7 +193,7 @@ def get_records(table, options={})
     end
   end
 
-  records
+  return ids, records
 end
 
 def backtick(value)

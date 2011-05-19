@@ -16,7 +16,7 @@ module Grand
       end
 
       @tables.keys.each do |table|
-        @tables[table][:columns] = []
+        @tables[table][:column_names] = []
         @tables[table][:expected_primary_key] = {}
         @tables[table][:expected_primary_key][:name] = config[:primary_key]
         @tables[table][:expected_timestamp] = {}
@@ -24,7 +24,7 @@ module Grand
         timestamp_ok = false
 
         db_client.query("show columns from #{table}").each do |row|
-          @tables[table][:columns] << row["Field"]
+          @tables[table][:column_names] << row["Field"]
 
           if row['Field'] == config[:primary_key]
             if row["Key"] == "PRI" && row["Extra"] == "auto_increment"
@@ -38,8 +38,8 @@ module Grand
           end
         end
 
-        @tables[table][:columns].sort!
-        @tables[table][:version] = Digest::MD5.hexdigest(@tables[table][:columns].to_s)
+        @tables[table][:column_names].sort!
+        @tables[table][:version] = Digest::MD5.hexdigest(@tables[table][:column_names].to_s)
         table_versions << @tables[table][:version]
 
         db_client.query("show indexes from #{table}").each do |row|
