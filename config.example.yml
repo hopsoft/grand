@@ -20,5 +20,10 @@ max_empty_loops: 10
 # The directory where the archived files will be save.
 path: /path/to/archived/files
 
+# The storage strategy to use on the filesystem.
+# * structured - directories are created for each table and data files are stored in the appropriate table directories
+# * flat - all files are stored directly under /[path] Note that the schema will be still be stored in table directories
+storage_strategy: flat
+
 # The delimiter to use as a column separator in the CSV files.
 csv_delimiter: ","

@@ -16,6 +16,8 @@ module Grand
       end
 
       @tables.keys.each do |table|
+        @tables[table][:columns] = []
+        @tables[table][:indexes] = []
         @tables[table][:column_names] = []
         @tables[table][:expected_primary_key] = {}
         @tables[table][:expected_primary_key][:name] = config[:primary_key]
@@ -24,6 +26,7 @@ module Grand
         timestamp_ok = false
 
         db_client.query("show columns from #{table}").each do |row|
+          @tables[table][:columns] << row
           @tables[table][:column_names] << row["Field"]
 
           if row['Field'] == config[:primary_key]
@@ -43,6 +46,7 @@ module Grand
         table_versions << @tables[table][:version]
 
         db_client.query("show indexes from #{table}").each do |row|
+          @tables[table][:indexes] = row
           if row["Column_name"] == config[:timestamp] && timestamp_ok
             @tables[table][:expected_timestamp][:valid] = true
           end

@@ -52,19 +52,22 @@ def archive(options={})
   options[:minutes] ||= 5
   options[:end_date] ||= Time.now
   options[:start_date] ||= options[:end_date].advance(:minutes => (options[:minutes] * -1))
-  options[:start_date] = options[:start_date].change(:seconds => 0)
-  options[:end_date] = options[:end_date].change(:seconds => 0)
+  options[:start_date] = options[:start_date].change(:sec => 0)
+  options[:end_date] = options[:end_date].change(:sec => 0)
 
   schema.tables.each do |table, info|
-    path = File.expand_path(File.join(config[:path], table))
+    path = config[:path]
+    path = File.join(path, table) if config[:storage_strategy] == "structured"
     FileUtils.mkdir_p(path)
 
     # save schema information
     schemas_path = File.join(path, "schemas")
-    schema_file_path = File.join(schemas_path, "#{info[:version]}.yml")
-    if !File.exists?(schema_file_path)
+    file_name = "#{info[:version]}.yml"
+    file_name = "#{table}-#{file_name}" if config[:storage_strategy] == "flat"
+    file_path = File.join(schemas_path, file_name)
+    if !File.exists?(file_path)
       FileUtils.mkdir_p(schemas_path)
-      File.open(schema_file_path, "w") do |file|
+      File.open(file_path, "w") do |file|
         file.write(info.to_yaml)
       end
     end
@@ -84,6 +87,7 @@ def archive(options={})
     end
 
     file_name = "#{options[:start_date].strftime('%Y%m%d%H%M%S')}-#{options[:end_date].strftime('%Y%m%d%H%M%S')}-#{info[:version]}.csv"
+    file_name = "#{table}-#{file_name}" if config[:storage_strategy] == "flat"
     file_path = File.join(path, file_name)
     ids, records = get_records(table, options)
 
@@ -102,8 +106,7 @@ def archive(options={})
       # save missing ids to a file as well
       missing_ids = get_missing_ids(table, ids.first, ids.last)
       if missing_ids.length > 0
-        file_name = "#{options[:start_date].strftime('%Y%m%d%H%M%S')}-#{options[:end_date].strftime('%Y%m%d%H%M%S')}-#{info[:version]}.csv"
-        file_path = File.join(path, file_name)
+        file_path = File.join(path, "missing-#{file_name}")
 
         FasterCSV.open(file_path, "w", :col_sep => config[:csv_delimiter]) do |csv|
           csv << ["id"]

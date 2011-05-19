@@ -1,13 +1,15 @@
 # Grand
 
-An Incremental File Archiver for MySQL
+An incremental file archiver for MySQL.
 
 Docs coming soon.
 
 
 ## TODOS
 * Write the README documentation
-* Add add support for multiple file creation strategies
+* Add support for archiving deletes
+* Generate report for tables that couldn't be archived
+* Generate report indicating which archive strategy was used for each table
 * Add parallelism
 
 
