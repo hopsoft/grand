@@ -1,7 +1,9 @@
 # Grand
-## An Incremental File Archiver for MySQL
+
+An Incremental File Archiver for MySQL
 
 Docs coming soon.
+
 
 ## TODOS
 * Write the README documentation
@@ -9,7 +11,7 @@ Docs coming soon.
 * Add parallelism
 
 
-### The MIT License
+## The MIT License
 
 Copyright (c) 2011 Nathan Hopkins, Brett Beers
 
