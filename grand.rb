@@ -97,7 +97,7 @@ def archive(options={})
         csv << info[:column_names]
         records.each do |row|
           values = []
-          info[:column_names].each {|c| values << row[c]}
+          info[:column_names].each {|c| values << prepare(row[c])}
           csv << values
           record_count += 1
         end
@@ -201,4 +201,12 @@ end
 
 def backtick(value)
   '`' + value.to_s + '`'
+end
+
+def prepare(value)
+  if value.is_a?(String)
+    # TODO: get the delimiter escaping to work
+    return value.gsub(/\n/, "").gsub(config[:csv_delimiter], config[:csv_delimiter])
+  end
+  value
 end

@@ -1,5 +1,5 @@
 require "mysql2"
-require "digest/md5"
+require "digest/sha1"
 
 module Grand
   class Schema
@@ -42,7 +42,7 @@ module Grand
         end
 
         @tables[table][:column_names].sort!
-        @tables[table][:version] = Digest::MD5.hexdigest(@tables[table][:column_names].to_s)
+        @tables[table][:version] = Digest::SHA1.hexdigest(@tables[table][:column_names].to_s)[0, 8]
         table_versions << @tables[table][:version]
 
         db_client.query("show indexes from #{table}").each do |row|
@@ -53,7 +53,7 @@ module Grand
         end
       end
 
-      @version = Digest::MD5.hexdigest(table_versions.join)
+      @version = Digest::SHA1.hexdigest(table_versions.join)[0, 8]
       @tables
     end
 
