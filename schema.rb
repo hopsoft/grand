@@ -1,5 +1,6 @@
 require "mysql2"
 require "digest/sha1"
+require "fileutils"
 
 module Grand
   class Schema
@@ -7,6 +8,21 @@ module Grand
 
     def initialize(config={})
       @config = config
+
+      # attempt to use a cached version of the schema
+      # caches the schema definition for 2 hours
+      path = File.expand_path(File.join(File.dirname(__FILE__), "tmp"))
+      FileUtils.mkdir_p(path)
+      file_name = Digest::SHA1.hexdigest(config[:database].to_s)
+      file_path = File.join(path, file_name)
+      if File.exists?(file_path) && (Time.now - File.mtime(file_path)) < 7200
+        data = nil
+        File.open(file_path, "r") { |f| data = Marshal.load(f.read) }
+        @tables = data.first
+        @version = data.last
+        return
+      end rescue nil
+
       db_client = config[:db_client] || Mysql2::Client.new(config[:database])
       table_versions = []
 
@@ -54,6 +70,12 @@ module Grand
       end
 
       @version = Digest::SHA1.hexdigest(table_versions.join)[0, 8]
+
+      # save the schema to the file system
+      File.open(file_path, "w") do |f|
+        f.write(::Marshal.dump([@tables, @version]))
+      end rescue nil
+
       @tables
     end
 
