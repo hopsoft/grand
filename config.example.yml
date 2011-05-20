@@ -12,7 +12,7 @@ primary_key: id
 timestamp: updated_at
 
 # The batch size to use when searching for updates using the pk strategy.
-batch_size: 10000
+batch_size: 1000
 
 # Indicates how many times the pk strategy will loop with empty results.
 max_empty_loops: 10
