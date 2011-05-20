@@ -92,6 +92,8 @@ def archive(options={})
     ids, records = get_records(table, options)
 
     if records.length > 0
+      logger.info "Creating archive file(s) for #{table}."
+
       # save inserts and updates to a file
       FasterCSV.open(file_path, "w", :col_sep => config[:csv_delimiter]) do |csv|
         csv << info[:column_names]
@@ -104,6 +106,7 @@ def archive(options={})
       end
 
       # save missing ids to a file as well
+      # TODO: chunk the get_missing_ids queries so they run faster
       missing_ids = get_missing_ids(table, ids.first, ids.last)
       if missing_ids.length > 0
         file_path = File.join(path, "missing-#{file_name}")
@@ -115,6 +118,9 @@ def archive(options={})
           end
         end
       end
+
+      # create a control file that indicaets that the csv is ready for pickup
+      File.open(file_path.gsub(/\.csv/, ".ctl"), "w") {|f| f.write("#{records.length}\n")}
     end
   end
 
@@ -151,7 +157,8 @@ def get_records(table, options={})
   else
     query = "select #{pk} from #{tbl} order by #{pk} desc limit 1"
     logger.info "Querying #{table} with primary key strategy."
-    last_id = @db_client.query(query).first.values.first rescue nil
+    logger.info query
+    last_id = db_client.query(query, :as => :array).first.first rescue nil
     last_queried_id = nil
 
     empty_loop_count = 0
@@ -166,7 +173,7 @@ def get_records(table, options={})
       db_client.query(query).each do |row|
         current_id = row[config[:primary_key]]
         next if row[config[:timestamp]].nil?
-        if row[config[:timestamp]] >= options[:start_date] && row[config[:timestamp]] <= options[:start_date]
+        if row[config[:timestamp]] >= options[:start_date] && row[config[:timestamp]] <= options[:end_date]
           last_id = current_id
           ids << last_id
           empty_loop_count = 0
@@ -196,6 +203,8 @@ def get_records(table, options={})
     end
   end
 
+  logger.info "#{table}: ids=#{ids.length} records=#{records.count}"
+
   return ids, records
 end
 
@@ -203,10 +212,10 @@ def backtick(value)
   '`' + value.to_s + '`'
 end
 
+# Preparse a value for storage in the CSV file.
+# @param [Object] value The value to prepare
+# @return [Object] The prepared value
 def prepare(value)
-  if value.is_a?(String)
-    # TODO: get the delimiter escaping to work
-    return value.gsub(/\n/, "").gsub(config[:csv_delimiter], config[:csv_delimiter])
-  end
-  value
+  return value unless value.is_a?(String)
+  value.gsub(/\n/, " ").gsub(config[:csv_delimiter], "\\#{config[:csv_delimiter]}")
 end
