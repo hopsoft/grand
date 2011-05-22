@@ -216,6 +216,7 @@ end
 # @param [Object] value The value to prepare
 # @return [Object] The prepared value
 def prepare(value)
+  return value.to_s(:db) if value.is_a?(Time) || value.is_a?(DateTime)
   return value unless value.is_a?(String)
   value.gsub(/\n/, " ").gsub(config[:csv_delimiter], "\\#{config[:csv_delimiter]}")
 end
