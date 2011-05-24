@@ -187,6 +187,9 @@ def get_records(table, options={})
     end
   end
 
+  threads = []
+  rcr_hsh = {}
+
   if ids.length > 0
     chunk_count = ids.length / config[:batch_size]
     if chunk_count == 0
@@ -196,15 +199,19 @@ def get_records(table, options={})
     else
       chunk_size = ids.length / chunk_count
       ids.each_slice(chunk_size).map.each do |chunk|
-        query = "select #{columns.join(', ')} from #{tbl} where id in (#{chunk.join(',')})"
-        logger.info query
-        db_client.query(query).each {|r| records << r}
+        threads << Thread.new(records) do |rs|
+          query = "select #{columns.join(', ')} from #{tbl} where id in (#{chunk.join(',')})"
+          # logger.info query
+          db_client.query(query).each {|r| rs << r}
+        end
+        
       end
     end
   end
-
+    
+  threads.each {|t| t.join }
+  
   logger.info "#{table}: ids=#{ids.length} records=#{records.count}"
-
   return ids, records
 end
 

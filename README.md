@@ -11,7 +11,10 @@ Docs coming soon.
 * Generate report for tables that couldn't be archived
 * Generate report indicating which archive strategy was used for each table
 * Add parallelism
+* Make sure that we don't go over the mysql $max_connections variable
 
+## BUGS
+* Ruby 1.9.1 FasterCSV error when using large numbers for the minutes option. I came across this using 'archive :minutes => 500000'
 
 ## The MIT License
 
@@ -34,4 +37,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-
